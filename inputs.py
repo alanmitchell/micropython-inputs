@@ -1,3 +1,8 @@
+# inputs.py
+# Author: Alan Mitchell, tabb99@gmail.com
+# Provides counters, debounced digital inputs, analog inputs with
+# moving averages.
+
 import pyb
 import array
 import math
@@ -154,6 +159,15 @@ class Digital(DigitalBase):
     '''
 
     def __init__(self, pin_name, hl_func=None, lh_func=None, **kwargs):
+        '''Arguments not in the inheritance chain:
+        hl_func: if a function is provided, it is called when the pin 
+            transitions from a high state (1) to a low state (0).  This
+            function call occurs during the Timer interrupt, so do not
+            consume much time within the function.
+        lh_func: if a function is provided, it is called when the pin
+            transitions from a low state (0) to a high state(1).  The
+            call occurs during the timer iterrupt.
+        '''
         DigitalBase.__init__(self, pin_name, **kwargs)
         self.hl_func = hl_func
         self.lh_func = lh_func
@@ -187,12 +201,27 @@ class Digital(DigitalBase):
 
 
 class Counter(DigitalBase):
+    '''A class used to count pulses on a digital input pin.  The counter
+    can count one or both edge transitions of the pulse.  Pin transitions
+    are debounced.
+    '''
 
-    # Constants signifying whether one or both edges are counted.
+    # Constants signifying whether one or both transition edges are counted.
     ONE_EDGE = 1
     BOTH_EDGES = 2
 
-    def __init__(self, pin_name, stable_read_count=5, edges=ONE_EDGE, reset_on_read=False, **kwargs):
+    def __init__(self, pin_name, stable_read_count=4, edges=ONE_EDGE, reset_on_read=False, **kwargs):
+        '''Arguments not in the inheritance chain:
+        edges: Either ONE_EDGE or BOTH_EDGES indicating which transitions of the pulse to 
+            count.
+        reset_on_read: if True, the counter value will be reset to 0 after the count
+            is read via a call to the value() method.
+        Note that the default 'stable_read_count' value is set to 4 reads.  With the 
+        default 2.1 ms read interval, this requires stability for 8.4 ms.  Counters are
+        often reed switches or electronic pulse trains, both of which have little to no
+        bounce.  Using a low value for 'stable_read_count' increases the pulse frequency
+        that can be read by the counter.
+        '''
         DigitalBase.__init__(self, pin_name, stable_read_count=stable_read_count, **kwargs)
         self.edges = edges
         self.reset_on_read = reset_on_read
@@ -201,6 +230,8 @@ class Counter(DigitalBase):
         self._new_val = None    # need to allocate memory here, not in interrupt routine
 
     def service_input(self):
+        # shift the prior readings over one bit, and put the new reading
+        # in the LSb position.
         self._reads = ((self._reads << 1) | self._pin.value()) & self._mask
         if self._reads != 0 and self._reads != self._mask:
             # The prior set of readings have alternated between ones and zeroes
@@ -228,7 +259,8 @@ class Counter(DigitalBase):
         return ct
 
     def reset_count(self):
-        '''Resets the counts.
+        '''Resets the counts and protects the processs form being
+        interrupted.
         '''
         irq_state = pyb.disable_irq()
         self._high_to_low_count = self._low_to_high_count = 0
@@ -236,13 +268,25 @@ class Counter(DigitalBase):
 
 
 class AnalogBase(InputBase):
+    '''Base class for analog input pins.
+    '''
 
     def __init__(self, pin_name, buffer_size=144, **kwargs):
+        '''Arguments not in inheritance chain:
+        buffer_size: the number readings to include in the moving
+            average.  If the sampling frequency is 480 Hz and 144
+            readings are included in the moving average, the average
+            spans 144 / 480 = 0.3 seconds.  For cancellation of 60 Hz
+            noise, it is good to have this time be an exact number of
+            60 Hz cycles.  0.3 seconds is exactly 18 full 60 Hz cycles.
+        '''
         InputBase.__init__(self, pin_name, **kwargs)
         self._adc = pyb.ADC(self._pin)
         self._buflen = buffer_size
+        # create a ring array with 2 byte elements, sufficient to
+        # store the 12-bit ADC readings.
         self._buf = array.array('H', [0] * buffer_size)
-        self._ix = 0
+        self._ix = 0   # ring array index
 
     def service_input(self):
         self._buf[self._ix] = self._adc.read()
@@ -250,17 +294,35 @@ class AnalogBase(InputBase):
 
 
 class Analog(AnalogBase):
+    '''Analog input that returns a moving average of the input pin.
+    '''
 
     def _compute_value(self):
+        # return the average value in the ring buffer.
         return sum(self._buf)/self._buflen
 
 
 class AnalogDeviation(AnalogBase):
+    '''Analog input that returns the standard deviation of the readings
+    in the ring buffer.
+    '''
 
-    def _compute_value(self):
+    def sum_sq_method(self):
         sum_v = sum(self._buf)
         n = self._buflen
         sum_v2 = 0
         for v in self._buf:
             sum_v2 += v * v
         return math.sqrt((sum_v2 - sum_v*sum_v/n)/(n-1))
+
+    def direct_method(self):
+        n = self._buflen
+        mean = sum(self._buf) / n
+        dev_sq = 0.0
+        for v in self._buf:
+            dev = v - mean
+            dev_sq += dev * dev
+        return math.sqrt(dev_sq/(n-1))         
+
+    def _compute_value(self):
+        return self.sum_sq_method(), self.direct_method()
