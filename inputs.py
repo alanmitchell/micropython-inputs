@@ -123,10 +123,24 @@ class InputBase(object):
 
 
 class DigitalBase(InputBase):
+    '''The base class for digital inputs.
+    '''
 
     def __init__(self, pin_name, pull=pyb.Pin.PULL_UP, stable_read_count=12, **kwargs):
+        '''New arguments not in the inheritance chain are:
+        stable_read_count:  The number of consistent readings of the pin in order to
+            declare that the pin has changed state.  If sampling occurs at 480 Hz, 
+            reads of the pin will occur every 2.1 ms.  A 'stable_read_count' of 12
+            means that the same value has to be read 12 times to be considered solid.
+            Those 12 reads will span 2.1 ms x 12 = 25.2 ms.
+        '''
         InputBase.__init__(self, pin_name, pull=pull, **kwargs)
+        # create a bit mask that will spans 'stable_read_count' bits.
         self._mask = 2 ** stable_read_count - 1
+        # start the variables in a state consistent with the PULL_UP.
+        # the self._reads variable holds the digital readings, each reading
+        # occupying one bit position; the most recent read is in the LSB
+        # position.
         if pull == pyb.Pin.PULL_UP:
             self._reads = self._mask
             self._cur_val = 1
@@ -136,6 +150,8 @@ class DigitalBase(InputBase):
 
 
 class Digital(DigitalBase):
+    '''A class to provide a debounced digital value from a pin.
+    '''
 
     def __init__(self, pin_name, hl_func=None, lh_func=None, **kwargs):
         DigitalBase.__init__(self, pin_name, **kwargs)
