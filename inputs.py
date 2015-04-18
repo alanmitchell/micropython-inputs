@@ -2,9 +2,68 @@ import pyb
 import array
 import math
 
+
 # -------------------------- Classes to Manage All Inputs ----------------------------
 
+class Manager:
+    '''Class to manage and service a number of inputs.
+    '''
 
+    def __init__(self, inputs, timer_num=1, poll_freq=480):
+        '''Arguments are:
+        inputs: a list or tuple of Inputs objects that derive from InputBase.
+        time_num: the number of the microcontroller Timer that will be used to
+            periodically poll the inputs.
+        poll_freq: the frequency in Hz to read the inputs.  The default value
+            of 480 Hz means each input will be read every 2.08 ms (1000 ms / 480).
+            Be careful about setting this too high as the time required to read
+            each input will consume substantial CPU cycles.  Roughly, each input
+            takes 80 usec to read.  Therefore, reading 20 inputs would require
+            80 usec x 20 = 1600 usec or 1.6 ms.  If inputs are being read every 2.08 ms,
+            the process of reading inputs consumes 1.6 / 2.08 or 77% of the CPU cycles.
+        '''
+        self.inputs = inputs
+        self._tim = pyb.Timer(timer_num, freq=poll_freq)
+        self._tim.callback(self.service_inputs)
+
+    def service_inputs(self, t):
+        '''This method is called by the timer interrupt and runs the 'service_input'
+        routine on each input.  That routine reads the input and does any required
+        processing.
+        '''
+        for i in range(len(self.inputs)):
+            self.inputs[i].service_input()
+
+    def input_values(self):
+        '''Returns the current values of all inputs as a MyDict object
+        (basically a Python dictionary that also allows value access through
+        attributes).
+        The keys in the dictionary are the 'key_name' for the input (see
+        InputBase class) and the dictionary values are the fully processed
+        input values (e.g. debounced digital input values, counter values, moving
+        average analog values).
+        '''
+        return MyDict([(inp.key_name(), inp.value()) for inp in self.inputs])
+
+    def __getattr__(self, input_key):
+        '''Returns a particular input with the key_name of 'input_key'.  This
+        method is accessed by the obj.input_key sytax.
+        '''
+        for inp in self.inputs:
+            if inp.key_name() == input_key:
+                return inp
+        raise KeyError
+
+
+class MyDict(dict):
+    '''A normal Python dictionary that also allows access to the value
+    of each item as an attribute of the object.  For example,
+    if 'd' is a MyDict object and has a key of 'abc', the value associated
+    with 'abc' can be accessed via d['abc'] or via d.abc .
+    '''
+
+    def __getattr__(self, key_name):
+        return self[key_name]
 
 
 # ---------------------- The Base Input Class and all Dervied Input Classes
@@ -189,4 +248,3 @@ class AnalogDeviation(AnalogBase):
         for v in self._buf:
             sum_v2 += v * v
         return math.sqrt((sum_v2 - sum_v*sum_v/n)/(n-1))
-
