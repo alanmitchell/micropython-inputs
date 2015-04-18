@@ -39,7 +39,7 @@ class Manager:
         for i in range(len(self.inputs)):
             self.inputs[i].service_input()
 
-    def input_values(self):
+    def values(self):
         '''Returns the current values of all inputs as a MyDict object
         (basically a Python dictionary that also allows value access through
         attributes).
