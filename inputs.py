@@ -307,22 +307,12 @@ class AnalogDeviation(AnalogBase):
     in the ring buffer.
     '''
 
-    def sum_sq_method(self):
-        sum_v = sum(self._buf)
-        n = self._buflen
-        sum_v2 = 0
-        for v in self._buf:
-            sum_v2 += v * v
-        return math.sqrt((sum_v2 - sum_v*sum_v/n)/(n-1))
-
-    def direct_method(self):
+    def _compute_value(self):
+        # returns standard deviation of values in the ring buffer.
         n = self._buflen
         mean = sum(self._buf) / n
         dev_sq = 0.0
         for v in self._buf:
             dev = v - mean
             dev_sq += dev * dev
-        return math.sqrt(dev_sq/(n-1))         
-
-    def _compute_value(self):
-        return self.sum_sq_method(), self.direct_method()
+        return math.sqrt(dev_sq/(n-1))
