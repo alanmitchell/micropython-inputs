@@ -210,12 +210,14 @@ class Counter(DigitalBase):
     ONE_EDGE = 1
     BOTH_EDGES = 2
 
-    def __init__(self, pin_name, stable_read_count=4, edges=ONE_EDGE, reset_on_read=False, **kwargs):
+    def __init__(self, pin_name, stable_read_count=4, edges=ONE_EDGE, reset_on_read=False, 
+                 rollover=2**32, **kwargs):
         '''Arguments not in the inheritance chain:
         edges: Either ONE_EDGE or BOTH_EDGES indicating which transitions of the pulse to 
             count.
         reset_on_read: if True, the counter value will be reset to 0 after the count
             is read via a call to the value() method.
+        rollover: count will roll to 0 when it hits this value.
         Note that the default 'stable_read_count' value is set to 4 reads.  With the 
         default 2.1 ms read interval, this requires stability for 8.4 ms.  Counters are
         often reed switches or electronic pulse trains, both of which have little to no
@@ -225,9 +227,14 @@ class Counter(DigitalBase):
         DigitalBase.__init__(self, pin_name, stable_read_count=stable_read_count, **kwargs)
         self.edges = edges
         self.reset_on_read = reset_on_read
-        self._low_to_high_count = 0
-        self._high_to_low_count = 0
+        self._rollover = rollover
+        self._count = 0
         self._new_val = None    # need to allocate memory here, not in interrupt routine
+
+    def incr_counter(self):
+        '''Increments the count accounting for rollover.
+        '''
+        self._count = (self._count + 1) % self._rollover
 
     def service_input(self):
         # shift the prior readings over one bit, and put the new reading
@@ -241,21 +248,20 @@ class Counter(DigitalBase):
         if self._new_val == self._cur_val:
             # no change in value
             return
-        if self._new_val > self._cur_val:
-            # transition from low to high occurred.
-            self._low_to_high_count += 1
-        else:
-            # transition from high to low occurred.
-            self._high_to_low_count += 1
+        if self._new_val < self._cur_val:
+            # transition from high to low occurred.  Always count these
+            # transitions.
+            self.incr_counter()
+        elif self.edges == Counter.BOTH_EDGES:
+            # A low to high transition occurred and counting both edges
+            # was requested, so increment counter.
+            self.incr_counter()
         self._cur_val = self._new_val
 
     def _compute_value(self):
-        if self.edges == Counter.ONE_EDGE:
-            ct = self._high_to_low_count
-        else:
-            ct = self._high_to_low_count + self._low_to_high_count
+        ct = self._count
         if self.reset_on_read:
-            self._high_to_low_count = self._low_to_high_count = 0
+            self._count = 0
         return ct
 
     def reset_count(self):
@@ -263,7 +269,7 @@ class Counter(DigitalBase):
         interrupted.
         '''
         irq_state = pyb.disable_irq()
-        self._high_to_low_count = self._low_to_high_count = 0
+        self._count = 0
         pyb.enable_irq(irq_state)
 
 
