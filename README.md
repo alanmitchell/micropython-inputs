@@ -1,5 +1,5 @@
 # micropython-inputs
-This micropython library facilitates reading digital and analog inputs on the pyboard or other microcontrollers running micropython.  Some of the notable features are:
+This Micro Python library facilitates reading digital and analog inputs on the pyboard or other microcontrollers running [Micro Python](http://micropython.org/), a variant of the Python 3 programming language that runs on some microcontrollers.  These library routines were tested on a [pyboard, available here](https://micropython.org/store/#/store).  Some of the notable features of this library are:
 
 * Digital input pins are debounced so transitions are detected cleanly.  Debouncing parameters are controllable by the user.
 * Digital input pins can be configured as counters for counting pulse trains.  Either one or both edges of the pulses can be counted, and debouncing is present to clean up reed switch closures.
@@ -8,7 +8,7 @@ This micropython library facilitates reading digital and analog inputs on the py
 
 ## Quickstart
 
-Suppose we need to set up an input to detect button presses, a counter to count the pulses from a water meter utilizing a dry contact reed switch, and an Analog input to measure a sensor voltage.  Here is the setup code:
+Suppose we need to set up an input to detect presses of a button, a counter to count the pulses from a water meter utilizing a dry contact reed switch, and an Analog input to measure a sensor voltage.  Here is the setup code:
 
 ```Python
 from inputs import Manager, Digital, Counter, Analog
@@ -49,4 +49,34 @@ print(vals.Y2)
 print(vals.button1)
 ```
 
-I will be using the pyboard as a data acquistion peripheral for the Raspberry Pi.  A simple way to transfer the input value to the Pi is to print the `vals` dictionary.  When the Pi receives the string representation of the dictionary, a call to `eval()` will convert the string back into a dictionary.
+If you want to access one individual input object, perhaps to read its value alone or change its descriptive name, you can do that through attribute access on the Manager object:
+
+```Python
+counter_obj = mgr.Y2
+# print the counter's current value
+print(counter_obj.value())
+```
+
+I will be using the pyboard as a data acquistion peripheral for the Raspberry Pi.  A simple way to transfer the input values to the Pi is to print the `vals` dictionary.  When the Pi receives the string representation of the dictionary, a call to `eval()` will convert the string back into a dictionary.
+
+## CPU Resources
+
+If you are setting up many input objects, you need to consider the amount of load you will put on the CPU.  Each input takes roughly 80 usec to poll.  If you have 20 inputs, total time consumed in the Timer interrupt routine polling the inputs will be 20 x 80 usec = 1600 usec, or 1.6 ms.  The default polling rate is 2.1 ms, so the polling process will consumer 76% of your CPU resources. This may or may not be acceptable, depending on your application.
+
+## Documentation of Classes
+
+This section documents the public interface to classes in the micropython-inputs library.
+
+### Manager class
+
+This class holds the configured Input objects, periodically polls each input to update the input's value, and provides convenient ways to return the current value of inputs.
+
+**Manager**(inputs, timer_num=1, poll_freq=480)  
+
+Arguments include:
+
+`inputs`: This is the list of input objects that the Manager will periodically poll and manage.
+
+`timer_num`: The number of the microcontroller Timer that will be used to generate an interrupt for polling the inputs.
+
+`poll_freq`: The frequency that will be used to poll the inputs in Hz.  The default of 480 Hz will poll each sensor every 2.08 ms, which is a convenient value for debounce routines discussed later and analog averaging routines that sample across an exact number of 60 Hz cycles.
