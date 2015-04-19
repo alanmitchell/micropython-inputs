@@ -18,7 +18,9 @@ class Manager:
         '''Arguments are:
         inputs: a list or tuple of Inputs objects that derive from InputBase.
         time_num: the number of the microcontroller Timer that will be used to
-            periodically poll the inputs.
+            periodically poll the inputs.  If None is passed, no Timer will be
+            set up automatically and you will need to periodically call 
+            the 'service_inputs()` method from your own timer.
         poll_freq: the frequency in Hz to read the inputs.  The default value
             of 480 Hz means each input will be read every 2.08 ms (1000 ms / 480).
             Be careful about setting this too high as the time required to read
@@ -28,8 +30,9 @@ class Manager:
             the process of reading inputs consumes 1.6 / 2.08 or 77% of the CPU cycles.
         '''
         self.inputs = inputs
-        self._tim = pyb.Timer(timer_num, freq=poll_freq)
-        self._tim.callback(self.service_inputs)
+        if timer_num is not None:
+            self._tim = pyb.Timer(timer_num, freq=poll_freq)
+            self._tim.callback(self.service_inputs)
 
     def service_inputs(self, t):
         '''This method is called by the timer interrupt and runs the 'service_input'

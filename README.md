@@ -32,7 +32,7 @@ Each Input object type has a number of configuration options, all with default v
 
 After the Manager object is created, it automatically starts polling the input objects at the default rate of 480 Hz (a 2x or greater multiple of 60 Hz will help 60 Hz noise to be filtered on Analog lines).  Each input is read and processed according to the type of input it is.
 
-At any time, the current values of all the inputs can be read by executing the `values()` method on the Manager object.  The return object is a superset of a Python dictionary, also allowing access to values through attributes:
+At any time, the current values of all the inputs can be read by executing the `values()` method on the Manager object.  The return object is a Python dictionary with the added feature that values can be read as attributes of the object:
 
 ```Python
 # get all of the current input values
@@ -103,6 +103,10 @@ Arguments include:
 
 `inputs`: This is the list of input objects that the Manager will periodically poll and manage.
 
-`timer_num`: The number of the microcontroller Timer that will be used to generate an interrupt for polling the inputs.
+`timer_num`: The number of the microcontroller Timer that will be used to generate an interrupt for polling the inputs.  If `None` is passed, no automatic polling of inputs will occur, and you will need to periodically call the `service_inputs()` method of this object, perhaps from your own Timer interrupt routine.
 
 `poll_freq`: The frequency that will be used to poll the inputs in Hz.  The default of 480 Hz will poll each sensor every 2.08 ms, which is a convenient value for debounce routines discussed later and analog averaging routines that sample across an exact number of 60 Hz cycles.
+
+**Manager.values**()
+
+This returns a snapshot of all of the current inputs.  The return object is a Python dictionary with added feature of being able to use an attribute to access a value as well as standard dictionary syntax.  If `vals` is the object returned by this method, these two read access means are equivalent:  `vals['X1']` and `vals.X1`.
