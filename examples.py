@@ -1,19 +1,13 @@
 import time
-from inputs import Manager, Digital, Counter, Analog, AnalogDeviation
+from inputs import Manager, Digital, Counter, Analog
 
+mgr = Manager([Digital('Y1:button1'),
+               Counter('Y2'),
+               Analog('X1:sensor1_volts', convert_func=lambda x: x / 4095 * 3.3)])
 
-def hl_occurred():
-    print('High to Low transition occurred!')
-
-
-mgr = Manager([Digital('Y1:button1', hl_func=hl_occurred),
-               Counter('Y2', edges=Counter.BOTH_EDGES),
-               Analog('X1:sensor1_volts', convert_func=lambda x: x / 4095 * 3.3),
-               AnalogDeviation('X2:coil_sensor')])
+# wait to fill the Analog buffer with readings before reading the first time.
+time.sleep(0.4)
 while True:
     vals = mgr.values()
     print(vals)
-    print('Value access through attributes: %.3f V' % vals.sensor1_volts)
-    #gc.collect()
-    #print(gc.mem_free())
     time.sleep(1)

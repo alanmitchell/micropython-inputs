@@ -211,7 +211,7 @@ class Counter(DigitalBase):
     BOTH_EDGES = 2
 
     def __init__(self, pin_name, stable_read_count=4, edges=ONE_EDGE, reset_on_read=False, 
-                 rollover=2**32, **kwargs):
+                 rollover=1073741823, **kwargs):
         '''Arguments not in the inheritance chain:
         edges: Either ONE_EDGE or BOTH_EDGES indicating which transitions of the pulse to 
             count.
@@ -231,11 +231,6 @@ class Counter(DigitalBase):
         self._count = 0
         self._new_val = None    # need to allocate memory here, not in interrupt routine
 
-    def incr_counter(self):
-        '''Increments the count accounting for rollover.
-        '''
-        self._count = (self._count + 1) % self._rollover
-
     def service_input(self):
         # shift the prior readings over one bit, and put the new reading
         # in the LSb position.
@@ -251,11 +246,11 @@ class Counter(DigitalBase):
         if self._new_val < self._cur_val:
             # transition from high to low occurred.  Always count these
             # transitions.
-            self.incr_counter()
+            self._count = (self._count + 1) % self._rollover
         elif self.edges == Counter.BOTH_EDGES:
             # A low to high transition occurred and counting both edges
             # was requested, so increment counter.
-            self.incr_counter()
+            self._count = (self._count + 1) % self._rollover
         self._cur_val = self._new_val
 
     def _compute_value(self):
