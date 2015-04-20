@@ -22,9 +22,9 @@ def hl_occurred():
 # the Manager class holds the input objects and polls them at a regular 
 # interval from a Timer interrupt.  We pass a list of the three needed
 # input objects to the constructor.
-mgr = Manager([Digital('Y1:button1', hl_func=hl_occurred),
+mgr = Manager([Digital('Y1: button1', hl_func=hl_occurred),
                Counter('Y2'),
-               Analog('X1:sensor1_volts', convert_func=lambda x: x / 4095 * 3.3)])
+               Analog('X1: sensor1_volts', convert_func=lambda x: x / 4095 * 3.3)])
 ```
 The first argument passed to constructor of each Input object is the name of the pin to use for the input.  For example, the Counter input uses the Y2 pin.  Optionally, a more descriptive name can be added after a colon.  The Digital input uses Pin Y1 and is labeled `button1`.  If a descriptive name is provided, it will be used for all labeling and accessing of the input.
 
@@ -55,9 +55,9 @@ I will be using the pyboard as a data acquistion peripheral for the Raspberry Pi
 import time
 from inputs import Manager, Digital, Counter, Analog
 
-mgr = Manager([Digital('Y1:button1'),
+mgr = Manager([Digital('Y1: button1'),
                Counter('Y2'),
-               Analog('X1:sensor1_volts', convert_func=lambda x: x / 4095 * 3.3)])
+               Analog('X1: sensor1_volts', convert_func=lambda x: x / 4095 * 3.3)])
 
 # wait to fill the Analog buffer with readings before reading the first time.
 time.sleep(0.4)
@@ -70,9 +70,10 @@ while True:
 And here is a sample of the output from the program:
 
 ```
-{'Y2': 3, 'button1': 1, 'sensor1_volts': 1.64033}
-{'Y2': 3, 'button1': 1, 'sensor1_volts': 1.639513}
-{'Y2': 3, 'button1': 1, 'sensor1_volts': 1.639983}
+{'Y2': 0, 'button1': 1, 'sensor1_volts': 1.64033}
+{'Y2': 1, 'button1': 0, 'sensor1_volts': 1.639513}
+{'Y2': 2, 'button1': 0, 'sensor1_volts': 1.639983}
+{'Y2': 2, 'button1': 1, 'sensor1_volts': 1.639995}
 ```
 
 If you want to access one individual input object, perhaps to read its value alone or change its descriptive name, you can do that through attribute access on the Manager object:
@@ -98,8 +99,7 @@ This section documents the public interface to classes in the micropython-inputs
 This class holds the configured Input objects, periodically polls each input to update the input's value, and provides convenient ways to return the current value of inputs.
 
 **Manager**(inputs, timer_num=1, poll_freq=480)  
-
-Arguments include:
+Arguments for instantiating a Manager object include:
 
 `inputs`: This is the list of input objects that the Manager will periodically poll and manage.
 
@@ -107,6 +107,84 @@ Arguments include:
 
 `poll_freq`: The frequency that will be used to poll the inputs in Hz.  The default of 480 Hz will poll each sensor every 2.08 ms, which is a convenient value for debounce routines discussed later and analog averaging routines that sample across an exact number of 60 Hz cycles.
 
-**Manager.values**()
-
+**Manager.values**()  
 This returns a snapshot of all of the current inputs.  The return object is a Python dictionary with added feature of being able to use an attribute to access a value as well as standard dictionary syntax.  If `vals` is the object returned by this method, these two read access means are equivalent:  `vals['X1']` and `vals.X1`.
+
+**Manager.service_inputs**()  
+This routine reads and services all of the inputs and does not normally need to be used; it is generally called from a Timer interrupt internally set up by the Manager object.  However, if this internal Timer is disabled by passing `None` to the `timer_num` constructor argument, a user can use their own Timer interrupt to periodically call this `service_inputs()` method.
+
+---
+
+### Methods Common to All Input Classes
+
+A number of methods are present on all the Input classes below, including:
+
+InputClass.**value**()  
+This returns the current value for the input, including all processing that occurs for that input, e.g. debouncing, averaging.
+
+InputClass.**key_name**()  
+This returns the pin name, e.g. 'X1', or, if a descriptive name for the input was provided, the descriptive name is returned instead.
+
+InputClass.**service_input**()  
+If you are using one of the Input objects without use of the Manager object, this is the method that must be periodically called to update and process new input values.
+
+---
+
+### Digital class
+This class handles a digital input pin, providing debouncing and the ability to have callback functions that run when the pin changes state.
+
+**Digital**(pin_name, pull=pyb.Pin.PULL_UP, convert_func=None,
+            stable_read_count=12, hl_func=None, lh_func=None)  
+Arguments for instantiating a Digital object include:
+
+`pin_name`: The microcontroller pin name, such as 'X1' or 'Y2'.  Optionally a descriptive name can be provided after a separating colon, e.g. 'X1: button1'.  If the descriptive name is provided, it will be used instead of the pin name for accessing the input.
+
+`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the pyb.Pin.PULL_ constants.
+
+`convert_func`:  A Digital input normally reads a 0 or a 1 value.  If you want these two values translated to something else (even a string), provide the name of a conversion function here, or enter a Python lambda function.
+
+`stable_read_count`:  The digital input pin is read repeatedly at a rate determined by the `poll_freq` value passed to the Manager class.  To debounce the input, a changed input value must remain the same for `stable_read_count` readings.  If so, a state changed is deemed to occur.  The default value is 12 readings in a row, and with the default polling frequency of 480 Hz (2.08 ms spacing), the reading must remain stable for about 25 ms to be considered valid.  This argument must be set to a value of 30 stable readings or less. 
+
+`hl_func`: A callback function that will be run when the input stably transitions from a 1 value to a 0 value.
+
+`lh_func`: A callback function that will be run when the input stably transitions from a 0 value to a 1 value.
+
+---
+
+### Counter class
+
+**Counter**(pin_name, pull=pyb.Pin.PULL_UP, convert_func=None,  
+stable_read_count=4, edges=Counter.ONE_EDGE, reset_on_read=False,   
+rollover=1073741823)
+
+Arguments for instantiating a Digital object include:
+
+`pin_name`: The microcontroller pin name, such as 'X1' or 'Y2'.  Optionally a descriptive name can be provided after a separating colon, e.g. 'X1: button1'.  If the descriptive name is provided, it will be used instead of the pin name for accessing the input.
+
+`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the pyb.Pin.PULL_ constants.
+
+`convert_func`:  The value returned by the Input object is the count that has accumulated.  If you want this count value translated to something else, provide the name of a conversion function here, or enter a Python lambda function.
+
+`stable_read_count`:  The digital input pin is read repeatedly at a rate determined by the `poll_freq` value passed to the Manager class.  To debounce the input, a changed input value must remain the same for `stable_read_count` readings.  If so, a state changed is deemed to occur.  The default value is 4 readings in a row, and with the default polling frequency of 480 Hz (2.08 ms spacing), the reading must remain stable for about 8.3 ms to be considered valid.  Electronic generated pulses and reed switch pulses have little or no bounce, so a small stable read count can be used to increase the maximum pulse rate that can be read.  This argument must be set to a value of 30 stable readings or less. 
+
+`edges`:  This argument determines whether the falling edge alone of the pulse is counted, or whether both the falling and rising edges are counted.  It must be either the constant `Counter.ONE_EDGE` or the constant `Counter.BOTH_EDGES`.
+
+`reset_on_read`: If True, the count is reset to 0 every time the count value is read through use of the `value()` method.
+
+`rollover`:  If the count reaches this value it will reset to 0.  The default rollover value of 1073741823 is the largest that is possible.  
+
+**Counter.reset_count**()  
+This method will reset the count to zero.
+
+---
+
+### Analog class
+
+**Analog**()
+
+
+---
+
+### AnalogDeviation class
+
+**AnalogDeviation**()
