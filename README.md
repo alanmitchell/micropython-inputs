@@ -139,7 +139,7 @@ Arguments for instantiating a Digital object include:
 
 `pin_name`: The microcontroller pin name, such as 'X1' or 'Y2'.  Optionally a descriptive name can be provided after a separating colon, e.g. 'X1: button1'.  If the descriptive name is provided, it will be used instead of the pin name for accessing the input.
 
-`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the pyb.Pin.PULL_ constants.
+`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the `pyb.Pin.PULL_` constants.
 
 `convert_func`:  A Digital input normally reads a 0 or a 1 value.  If you want these two values translated to something else (even a string), provide the name of a conversion function here, or enter a Python lambda function.
 
@@ -153,6 +153,8 @@ Arguments for instantiating a Digital object include:
 
 ### Counter class
 
+
+
 **Counter**(pin_name, pull=pyb.Pin.PULL_UP, convert_func=None,  
 stable_read_count=4, edges=Counter.ONE_EDGE, reset_on_read=False,   
 rollover=1073741823)
@@ -161,7 +163,7 @@ Arguments for instantiating a Digital object include:
 
 `pin_name`: The microcontroller pin name, such as 'X1' or 'Y2'.  Optionally a descriptive name can be provided after a separating colon, e.g. 'X1: button1'.  If the descriptive name is provided, it will be used instead of the pin name for accessing the input.
 
-`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the pyb.Pin.PULL_ constants.
+`pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the `pyb.Pin.PULL_` constants.
 
 `convert_func`:  The value returned by the Input object is the count that has accumulated.  If you want this count value translated to something else, provide the name of a conversion function here, or enter a Python lambda function.
 
