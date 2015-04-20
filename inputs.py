@@ -17,7 +17,7 @@ class Manager:
     def __init__(self, inputs, timer_num=1, poll_freq=480):
         '''Arguments are:
         inputs: a list or tuple of Inputs objects that derive from InputBase.
-        time_num: the number of the microcontroller Timer that will be used to
+        timer_num: the number of the microcontroller Timer that will be used to
             periodically poll the inputs.  If None is passed, no Timer will be
             set up automatically and you will need to periodically call 
             the 'service_inputs()` method from your own timer.
