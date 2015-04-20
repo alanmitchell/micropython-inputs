@@ -152,8 +152,7 @@ Arguments for instantiating a Digital object include:
 ---
 
 ### Counter class
-
-
+This class uses a digital input pin to count pulses.  Transitions on the pin are debounced before counting.
 
 **Counter**(pin_name, pull=pyb.Pin.PULL_UP, convert_func=None,  
 stable_read_count=4, edges=Counter.ONE_EDGE, reset_on_read=False,   
@@ -165,7 +164,7 @@ Arguments for instantiating a Digital object include:
 
 `pull`:  A pull up or pull down resistor can be enabled on the pin by setting this argument to one of the `pyb.Pin.PULL_` constants.
 
-`convert_func`:  The value returned by the Input object is the count that has accumulated.  If you want this count value translated to something else, provide the name of a conversion function here, or enter a Python lambda function.
+`convert_func`:  The value returned by the Counter object is the count that has accumulated.  If you want this count value translated to something else, provide the name of a conversion function here, or enter a Python lambda function.
 
 `stable_read_count`:  The digital input pin is read repeatedly at a rate determined by the `poll_freq` value passed to the Manager class.  To debounce the input, a changed input value must remain the same for `stable_read_count` readings.  If so, a state changed is deemed to occur.  The default value is 4 readings in a row, and with the default polling frequency of 480 Hz (2.08 ms spacing), the reading must remain stable for about 8.3 ms to be considered valid.  Electronic generated pulses and reed switch pulses have little or no bounce, so a small stable read count can be used to increase the maximum pulse rate that can be read.  This argument must be set to a value of 30 stable readings or less. 
 
@@ -181,12 +180,23 @@ This method will reset the count to zero.
 ---
 
 ### Analog class
+This class is used to read analog values on an analog input pin.  A moving average of prior reads is calculated to help reduce the impacts of noise on the pin.  The value() returned by the class is the 12 bit ADC count, ranging from 0 - 4095.
 
-**Analog**()
+**Analog**(pin_name, pull=pyb.Pin.PULL_NONE, convert_func=None,  
+buffer_size=144,)
+The arguments for instantiating an Analog input object are:
 
+`pin_name`: The microcontroller pin name, such as 'X1' or 'Y2'.  Optionally a descriptive name can be provided after a separating colon, e.g. 'X1: button1'.  If the descriptive name is provided, it will be used instead of the pin name for accessing the input.
+
+`pull`:  While not normally used with an analog channel, a pull up or pull down resistor can be enabled on the pin by setting this argument to one of the `pyb.Pin.PULL_` constants.
+
+`convert_func`:  The value returned by the Analog object is the 12 bit ADC value, ranging from 0 - 4095. If you want this value translated to something else, provide the name of a conversion function here, or enter a Python lambda function.  For example, to convert the ADC value into measured voltage, use `convert_func=lambda x: x / 4095 * 3.3`.
+
+`buffer_size`:  This is the number of recent readings that you want averaged together to determine the final value returned by the `value()` method.  At the default sampling rate of 480 Hz, 144 reading values take 0.3 seconds to complete and span 16 complete 60 Hz cycles.
 
 ---
 
 ### AnalogDeviation class
+The AnalogDeviation class measures the standard deviation of the signal on an analog input pin.  The standard deviation is expressed in terms of the ADC units, which range from 0 to 4095 for the 12-bit converter.
 
-**AnalogDeviation**()
+The instantiation arguments and methods are identical for this class and the `Analog` class.  The only difference is that this class returns the standard deviation of the signal instead of the average value of the signal.
