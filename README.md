@@ -1,9 +1,9 @@
 # micropython-inputs
-This Micro Python library facilitates reading digital and analog inputs on the pyboard or other microcontrollers running [Micro Python](http://micropython.org/), a variant of the Python 3 programming language that runs on some microcontrollers.  These library routines were tested on a [pyboard, available here](https://micropython.org/store/#/store).  Some of the notable features of this library are:
+This Micro Python library facilitates reading digital and analog inputs on the pyboard or other microcontrollers running [Micro Python](http://micropython.org/), a variant of the Python 3 programming language.  These library routines were tested on a [pyboard, available here](https://micropython.org/store/#/store).  Some of the notable features of this library are:
 
 * Digital input pins are debounced so transitions are detected cleanly.  Debouncing parameters are controllable by the user.
 * Digital input pins can be configured as counters for counting pulse trains.  Either one or both edges of the pulses can be counted, and debouncing is present to clean up reed switch closures.
-* Analog readings are averaged across a user-selectable number of recent readings spaced at 2.1 ms (configurable) intervals.  Noise on the analog line can be significantly suppressed with this averaging technique.
+* Analog readings are averaged across a user-selectable number of recent readings spaced at 2.1 ms (user configurable) intervals.  Noise on the analog line can be significantly suppressed with this averaging technique.
 * Current values from the pins are easily accessible through a Python dictionary, keyed by either the Pin name or a more descriptive name you can assign to the pin.
 
 ## Quickstart
@@ -28,9 +28,9 @@ mgr = Manager([Digital('Y1: button1', hl_func=hl_occurred),
 ```
 The first argument passed to constructor of each Input object is the name of the pin to use for the input.  For example, the Counter input uses the Y2 pin.  Optionally, a more descriptive name can be added after a colon.  The Digital input uses Pin Y1 and is labeled `button1`.  If a descriptive name is provided, it will be used for all labeling and accessing of the input.
 
-Each Input object type has a number of configuration options, all with default values except for the required `pin_name` argument.  Some of the configuration options are shown in the example.  For the Digital input, a function is passed in that will be called when the input makes a clean transition from High (1) to Low (0). For the Analog input, a conversion function is passed in that takes the raw 0 - 4095 reading from the Analog pin and converts it to a voltage value.  Either a lambda function, as shown here, or a normal multi-line `def` function name can be passed.
+Each Input object type has a number of configuration options, all with default values except for the required `pin_name` argument.  Some of the configuration options are shown in the example.  For the Digital input in this example, a function is passed that will be called when the input makes a clean transition from High (1) to Low (0). For the Analog input, a conversion function is passed that takes the raw 0 - 4095 reading from the Analog pin and converts it to a voltage value.  Either a lambda function, as shown here, or a normal multi-line `def` function name can be passed.
 
-After the Manager object is created, it automatically starts polling the input objects at the default rate of 480 Hz (a 2x or greater multiple of 60 Hz will help 60 Hz noise to be filtered on Analog lines).  Each input is read and processed according to the type of input it is.
+After the Manager object is created, it automatically starts polling the input objects at the default rate of 480 Hz (a 2x or greater multiple of 60 Hz will help filter 60 Hz noise on Analog lines).  Each input is read and processed according to the type of input it is.
 
 At any time, the current values of all the inputs can be read by executing the `values()` method on the Manager object.  The return object is a Python dictionary with the added feature that values can be read as attributes of the object:
 
@@ -108,7 +108,7 @@ Arguments for instantiating a Manager object include:
 `poll_freq`: The frequency that will be used to poll the inputs in Hz.  The default of 480 Hz will poll each sensor every 2.08 ms, which is a convenient value for debounce routines discussed later and analog averaging routines that sample across an exact number of 60 Hz cycles.
 
 **Manager.values**()  
-This returns a snapshot of all of the current inputs.  The return object is a Python dictionary with added feature of being able to use an attribute to access a value as well as standard dictionary syntax.  If `vals` is the object returned by this method, these two read access means are equivalent:  `vals['X1']` and `vals.X1`.
+This returns a snapshot of all of the current inputs.  The return object is a Python dictionary with the added feature of being able to use an attribute to access a value as well as standard dictionary syntax.  If `vals` is the object returned by this method, these two read access means are equivalent:  `vals['X1']` and `vals.X1`.
 
 **Manager.service_inputs**()  
 This routine reads and services all of the inputs and does not normally need to be used; it is generally called from a Timer interrupt internally set up by the Manager object.  However, if this internal Timer is disabled by passing `None` to the `timer_num` constructor argument, a user can use their own Timer interrupt to periodically call this `service_inputs()` method.
@@ -145,9 +145,13 @@ Arguments for instantiating a Digital object include:
 
 `stable_read_count`:  The digital input pin is read repeatedly at a rate determined by the `poll_freq` value passed to the Manager class.  To debounce the input, a changed input value must remain the same for `stable_read_count` readings.  If so, a state changed is deemed to occur.  The default value is 12 readings in a row, and with the default polling frequency of 480 Hz (2.08 ms spacing), the reading must remain stable for about 25 ms to be considered valid.  This argument must be set to a value of 30 stable readings or less. 
 
-`hl_func`: A callback function that will be run when the input stably transitions from a 1 value to a 0 value.
+`hl_func`: A callback function that will be run when the input stably transitions from a 1 value to a 0 value.  This callback function is run
+from inside a Timer interrupt routine, so do not consume much time in
+the function you provide, as it will block future interrupts.
 
-`lh_func`: A callback function that will be run when the input stably transitions from a 0 value to a 1 value.
+`lh_func`: A callback function that will be run when the input stably transitions from a 0 value to a 1 value. This callback function is run
+from inside a Timer interrupt routine, so do not consume much time in
+the function you provide, as it will block future interrupts.
 
 ---
 
